@@ -1,27 +1,31 @@
-# Claude Code Rules
+# CLAUDE.md
 
-This file is generated during init for the selected agent.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-You are an expert AI assistant specializing in Spec-Driven Development (SDD). Your primary goal is to work with the architext to build products.
+## Commands
 
-## Task context
+### Build, Lint, and Test Commands
+This repository is a framework for managing the development process of a Claude Code agent and does not contain traditional application code. Therefore, there are no conventional `build`, `lint`, or `test` commands in the typical software development sense (e.g., in `package.json`, `Makefile`, or other standard locations).
 
-**Your Surface:** You operate on a project level, providing guidance to users and executing development tasks via a defined set of tools.
+The scripts within the `.specify` directory are related to the agent's internal operations and development workflow (e.g., `update-agent-context.ps1`, `create-new-feature.ps1`, `setup-plan.ps1`). These are for agent management, not application development.
 
-**Your Success is Measured By:**
-- All outputs strictly follow the user intent.
-- Prompt History Records (PHRs) are created automatically and accurately for every user prompt.
-- Architectural Decision Record (ADR) suggestions are made intelligently for significant decisions.
-- All changes are small, testable, and reference code precisely.
+## High-Level Code Architecture and Structure
 
-## Core Guarantees (Product Promise)
+This codebase is structured around the **Spec-Driven Development (SDD)** paradigm, primarily designed to facilitate the operation and development of the Claude Code agent.
 
-- Record every user input verbatim in a Prompt History Record (PHR) after every user message. Do not truncate; preserve full multiline input.
-- PHR routing (all under `history/prompts/`):
-  - Constitution → `history/prompts/constitution/`
-  - Feature-specific → `history/prompts/<feature-name>/`
-  - General → `history/prompts/general/`
-- ADR suggestions: when an architecturally significant decision is detected, suggest: "📋 Architectural decision detected: <brief>. Document? Run `/sp.adr <title>`." Never auto‑create ADRs; require user consent.
+*   **Core Purpose:** The repository serves as the operational framework for an AI assistant specializing in SDD, guiding users and executing development tasks through a defined set of tools and processes.
+*   **Key Directories and Their Roles:**
+    *   `.claude/commands/`: Contains custom slash commands for the Claude agent, defined in markdown files (e.g., `sp.clarify.md`, `sp.tasks.md`, `sp.plan.md`). These extend the agent's interactive capabilities.
+    *   `.specify/`: This is a central directory for "SpecKit Plus templates and scripts." It contains:
+        *   `.specify/scripts/powershell/`: PowerShell scripts that handle various agent-specific operations, such as `update-agent-context.ps1`, `create-new-feature.ps1`, and `setup-plan.ps1`. These scripts automate parts of the SDD workflow.
+        *   `.specify/memory/`: Includes `constitution.md`, which defines the project's foundational principles and code standards.
+        *   `.specify/templates/`: Houses various markdown templates for key SDD artifacts, such as `checklist-template.md`, `phr-template.prompt.md` (for Prompt History Records), `plan-template.md`, `adr-template.md` (for Architectural Decision Records), and `spec-template.md`.
+    *   `history/prompts/`: A directory for storing Prompt History Records (PHRs), which are detailed logs of user inputs and the assistant's key outputs, categorized by constitution, feature-specific, or general contexts.
+    *   `history/adr/`: A directory for Architecture Decision Records, documenting significant architectural decisions with their reasoning and tradeoffs.
+    *   `specs/<feature>/` (Inferred Structure): This refers to a logical grouping where feature-specific requirements (`spec.md`), architectural plans (`plan.md`), and testable tasks (`tasks.md`) would reside.
+
+*   **Development Workflow (SDD):** The agent's workflow is heavily driven by prompts, generating PHRs for every user interaction, and suggesting ADRs when architecturally significant decisions are made. The emphasis is on structured documentation, explicit planning, and adherence to defined principles.
+*   **No Direct Application Code:** The codebase does not appear to contain a traditional application's source code (e.g., Python, JavaScript, Java files for a deployable application). Instead, it's a meta-project focused on the operational and developmental processes of the Claude Code agent itself.
 
 ## Development Guidelines
 
@@ -31,91 +35,16 @@ Agents MUST prioritize and use MCP tools and CLI commands for all information ga
 ### 2. Execution Flow:
 Treat MCP servers as first-class tools for discovery, verification, execution, and state capture. PREFER CLI interactions (running commands and capturing outputs) over manual file creation or reliance on internal knowledge.
 
-### 3. Knowledge capture (PHR) for Every User Input.
-After completing requests, you **MUST** create a PHR (Prompt History Record).
-
-**When to create PHRs:**
-- Implementation work (code changes, new features)
-- Planning/architecture discussions
-- Debugging sessions
-- Spec/task/plan creation
-- Multi-step workflows
-
-**PHR Creation Process:**
-
-1) Detect stage
-   - One of: constitution | spec | plan | tasks | red | green | refactor | explainer | misc | general
-
-2) Generate title
-   - 3–7 words; create a slug for the filename.
-
-2a) Resolve route (all under history/prompts/)
-  - `constitution` → `history/prompts/constitution/`
-  - Feature stages (spec, plan, tasks, red, green, refactor, explainer, misc) → `history/prompts/<feature-name>/` (requires feature context)
-  - `general` → `history/prompts/general/`
-
-3) Prefer agent‑native flow (no shell)
-   - Read the PHR template from one of:
-     - `.specify/templates/phr-template.prompt.md`
-     - `templates/phr-template.prompt.md`
-   - Allocate an ID (increment; on collision, increment again).
-   - Compute output path based on stage:
-     - Constitution → `history/prompts/constitution/<ID>-<slug>.constitution.prompt.md`
-     - Feature → `history/prompts/<feature-name>/<ID>-<slug>.<stage>.prompt.md`
-     - General → `history/prompts/general/<ID>-<slug>.general.prompt.md`
-   - Fill ALL placeholders in YAML and body:
-     - ID, TITLE, STAGE, DATE_ISO (YYYY‑MM‑DD), SURFACE="agent"
-     - MODEL (best known), FEATURE (or "none"), BRANCH, USER
-     - COMMAND (current command), LABELS (["topic1","topic2",...])
-     - LINKS: SPEC/TICKET/ADR/PR (URLs or "null")
-     - FILES_YAML: list created/modified files (one per line, " - ")
-     - TESTS_YAML: list tests run/added (one per line, " - ")
-     - PROMPT_TEXT: full user input (verbatim, not truncated)
-     - RESPONSE_TEXT: key assistant output (concise but representative)
-     - Any OUTCOME/EVALUATION fields required by the template
-   - Write the completed file with agent file tools (WriteFile/Edit).
-   - Confirm absolute path in output.
-
-4) Use sp.phr command file if present
-   - If `.**/commands/sp.phr.*` exists, follow its structure.
-   - If it references shell but Shell is unavailable, still perform step 3 with agent‑native tools.
-
-5) Shell fallback (only if step 3 is unavailable or fails, and Shell is permitted)
-   - Run: `.specify/scripts/bash/create-phr.sh --title "<title>" --stage <stage> [--feature <name>] --json`
-   - Then open/patch the created file to ensure all placeholders are filled and prompt/response are embedded.
-
-6) Routing (automatic, all under history/prompts/)
-   - Constitution → `history/prompts/constitution/`
-   - Feature stages → `history/prompts/<feature-name>/` (auto-detected from branch or explicit feature context)
-   - General → `history/prompts/general/`
-
-7) Post‑creation validations (must pass)
-   - No unresolved placeholders (e.g., `{{THIS}}`, `[THAT]`).
-   - Title, stage, and dates match front‑matter.
-   - PROMPT_TEXT is complete (not truncated).
-   - File exists at the expected path and is readable.
-   - Path matches route.
-
-8) Report
-   - Print: ID, path, stage, title.
-   - On any failure: warn but do not block the main command.
-   - Skip PHR only for `/sp.phr` itself.
+### 3. Knowledge Capture (PHR) for Every User Input.
+After completing requests, you **MUST** create a PHR (Prompt History Record). PHRs are routed under `history/prompts/` (constitution, feature-name, or general).
 
 ### 4. Explicit ADR suggestions
-- When significant architectural decisions are made (typically during `/sp.plan` and sometimes `/sp.tasks`), run the three‑part test and suggest documenting with:
-  "📋 Architectural decision detected: <brief> — Document reasoning and tradeoffs? Run `/sp.adr <decision-title>`"
-- Wait for user consent; never auto‑create the ADR.
+When significant architectural decisions are made, suggest documenting with: "📋 Architectural decision detected: <brief> — Document reasoning and tradeoffs? Run `/sp.adr <decision-title>`". Wait for user consent; never auto‑create the ADR.
 
 ### 5. Human as Tool Strategy
-You are not expected to solve every problem autonomously. You MUST invoke the user for input when you encounter situations that require human judgment. Treat the user as a specialized tool for clarification and decision-making.
+You MUST invoke the user for input when you encounter situations that require human judgment: ambiguous requirements, unforeseen dependencies, architectural uncertainty, or after completing major milestones.
 
-**Invocation Triggers:**
-1.  **Ambiguous Requirements:** When user intent is unclear, ask 2-3 targeted clarifying questions before proceeding.
-2.  **Unforeseen Dependencies:** When discovering dependencies not mentioned in the spec, surface them and ask for prioritization.
-3.  **Architectural Uncertainty:** When multiple valid approaches exist with significant tradeoffs, present options and get user's preference.
-4.  **Completion Checkpoint:** After completing major milestones, summarize what was done and confirm next steps. 
-
-## Default policies (must follow)
+## Default policies
 - Clarify and plan first - keep business understanding separate from technical plan and carefully architect and implement.
 - Do not invent APIs, data, or contracts; ask targeted clarifiers if missing.
 - Never hardcode secrets or tokens; use `.env` and docs.
@@ -128,8 +57,8 @@ You are not expected to solve every problem autonomously. You MUST invoke the us
 2) List constraints, invariants, non‑goals.
 3) Produce the artifact with acceptance checks inlined (checkboxes or tests where applicable).
 4) Add follow‑ups and risks (max 3 bullets).
-5) Create PHR in appropriate subdirectory under `history/prompts/` (constitution, feature-name, or general).
-6) If plan/tasks identified decisions that meet significance, surface ADR suggestion text as described above.
+5) Create PHR in appropriate subdirectory under `history/prompts/`.
+6) If plan/tasks identified decisions that meet significance, surface ADR suggestion text.
 
 ### Minimum acceptance criteria
 - Clear, testable acceptance criteria included
@@ -138,66 +67,13 @@ You are not expected to solve every problem autonomously. You MUST invoke the us
 - Code references to modified/inspected files where relevant
 
 ## Architect Guidelines (for planning)
-
-Instructions: As an expert architect, generate a detailed architectural plan for [Project Name]. Address each of the following thoroughly.
-
-1. Scope and Dependencies:
-   - In Scope: boundaries and key features.
-   - Out of Scope: explicitly excluded items.
-   - External Dependencies: systems/services/teams and ownership.
-
-2. Key Decisions and Rationale:
-   - Options Considered, Trade-offs, Rationale.
-   - Principles: measurable, reversible where possible, smallest viable change.
-
-3. Interfaces and API Contracts:
-   - Public APIs: Inputs, Outputs, Errors.
-   - Versioning Strategy.
-   - Idempotency, Timeouts, Retries.
-   - Error Taxonomy with status codes.
-
-4. Non-Functional Requirements (NFRs) and Budgets:
-   - Performance: p95 latency, throughput, resource caps.
-   - Reliability: SLOs, error budgets, degradation strategy.
-   - Security: AuthN/AuthZ, data handling, secrets, auditing.
-   - Cost: unit economics.
-
-5. Data Management and Migration:
-   - Source of Truth, Schema Evolution, Migration and Rollback, Data Retention.
-
-6. Operational Readiness:
-   - Observability: logs, metrics, traces.
-   - Alerting: thresholds and on-call owners.
-   - Runbooks for common tasks.
-   - Deployment and Rollback strategies.
-   - Feature Flags and compatibility.
-
-7. Risk Analysis and Mitigation:
-   - Top 3 Risks, blast radius, kill switches/guardrails.
-
-8. Evaluation and Validation:
-   - Definition of Done (tests, scans).
-   - Output Validation for format/requirements/safety.
-
-9. Architectural Decision Record (ADR):
-   - For each significant decision, create an ADR and link it.
+As an expert architect, generate a detailed architectural plan for [Project Name] addressing Scope and Dependencies, Key Decisions and Rationale, Interfaces and API Contracts, Non-Functional Requirements (NFRs) and Budgets, Data Management and Migration, Operational Readiness, Risk Analysis and Mitigation, Evaluation and Validation, and Architectural Decision Record.
 
 ### Architecture Decision Records (ADR) - Intelligent Suggestion
-
-After design/architecture work, test for ADR significance:
-
-- Impact: long-term consequences? (e.g., framework, data model, API, security, platform)
-- Alternatives: multiple viable options considered?
-- Scope: cross‑cutting and influences system design?
-
-If ALL true, suggest:
-📋 Architectural decision detected: [brief-description]
-   Document reasoning and tradeoffs? Run `/sp.adr [decision-title]`
-
-Wait for consent; never auto-create ADRs. Group related decisions (stacks, authentication, deployment) into one ADR when appropriate.
+After design/architecture work, test for ADR significance based on Impact, Alternatives, and Scope. If all true, suggest: "📋 Architectural decision detected: [brief-description]
+   Document reasoning and tradeoffs? Run `/sp.adr [decision-title]`"
 
 ## Basic Project Structure
-
 - `.specify/memory/constitution.md` — Project principles
 - `specs/<feature>/spec.md` — Feature requirements
 - `specs/<feature>/plan.md` — Architecture decisions
